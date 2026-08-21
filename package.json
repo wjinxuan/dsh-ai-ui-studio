@@ -1,0 +1,27 @@
+{
+  "name": "@deepseek-ai/dsh-ai-ui-studio",
+  "version": "1.0.0",
+  "description": "AI UI Studio — 在 DSH 里预览你的 Web 应用，用拖拽/点选/AI 流式有效调整前端样式并写回源码",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js"
+  },
+  "files": [
+    "lib",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "react": ">=18"
+  },
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "cordis",
+    "plugin",
+    "ui-editor",
+    "preview"
+  ]
+}
