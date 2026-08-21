@@ -44,7 +44,14 @@ function apply(ctx) {
     document.head.appendChild(styleTag);
   }
 
-  function StudioPanel() {
+  function StudioPanel(props) {
+    const wsList = props && props.useWorkspaces ? props.useWorkspaces((s) => s.items) : null;
+    const curSession = props && props.useSessions ? props.useSessions((s) => s.current) : null;
+    let wsPath = "";
+    if (wsList && curSession) {
+      const w = wsList.find((x) => x.sessionIds && x.sessionIds.indexOf(curSession) >= 0);
+      if (w) wsPath = w.path;
+    }
     const openState = react.useState(false);
     const isOpen = openState[0];
     const setOpen = openState[1];
@@ -77,8 +84,9 @@ function apply(ctx) {
     const setPos = posState[1];
 
     function frame() { return document.getElementById("astudio-frame"); }
+    function previewSrc() { return wsPath ? (PREVIEW + encodeURIComponent(wsPath) + "/") : PREVIEW; }
     function post(type, payload) { const f = frame(); if (f && f.contentWindow) f.contentWindow.postMessage({ __appStudio: true, type: type, payload: payload || {} }, "*"); }
-    function refresh() { const f = frame(); if (f) f.src = PREVIEW; }
+    function refresh() { const f = frame(); if (f) f.src = previewSrc(); }
     function applyStyle(prop, val) { if (selected) post("applyStyle", { selector: selected.selector, property: prop, value: val }); }
     function applyText(val) { if (selected) post("applyText", { selector: selected.selector, value: val }); }
     function revert() { post("revert"); setChanges([]); setSelected(null); }
@@ -86,7 +94,7 @@ function apply(ctx) {
     function streamApply(args) {
       setBusy(true); setStream(""); setLog("生成中…");
       const q = encodeURIComponent(JSON.stringify(args));
-      const es = new EventSource("/__app_apply_sse?d=" + q);
+      const es = new EventSource("/__app_apply_sse?d=" + q + (wsPath ? "&dir=" + encodeURIComponent(wsPath) : ""));
       es.onmessage = function (e) {
         let p;
         try { p = JSON.parse(e.data); } catch (err) { return; }
@@ -154,7 +162,7 @@ function apply(ctx) {
         react.createElement("button", { onClick: startApp }, "启动"),
         react.createElement("button", { onClick: function () { setOpen(false); } }, "×"),
       ),
-      react.createElement("iframe", { id: "astudio-frame", className: "astudio-frame", src: PREVIEW }),
+      react.createElement("iframe", { id: "astudio-frame", className: "astudio-frame", src: previewSrc() }),
       react.createElement("div", { className: "astudio-status" },
         selected ? ("选中: <" + selected.tag + "> " + selected.selector + (selected.fragile ? " (脆弱)" : "")) : (editMode ? "编辑模式: 悬停高亮 · 点击选中 · 拖拽移动" : "预览模式")),
       selected ? react.createElement("div", { className: "astudio-props", key: selected.selector },
@@ -199,7 +207,7 @@ function apply(ctx) {
 
   const disposePanel = slots.inject("shell.overlay", function () { return slots.register(
     { name: "shell.overlay", id: "app-studio", order: 100 },
-    function () { return react.createElement(StudioPanel); },
+    function (props) { return react.createElement(StudioPanel, props); },
   ); });
 
   ctx.effect(() => () => {

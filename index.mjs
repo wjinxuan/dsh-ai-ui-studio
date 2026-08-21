@@ -146,9 +146,15 @@ export function apply(ctx) {
   const webServer = ctx.webServer
   const fs = ctx.get('fs')
   if (fs === undefined) return
-  const appDir = (typeof process !== 'undefined' && process.env.APP_STUDIO_APP_DIR) || DEFAULT_APP_DIR
-  const publicDir = appDir + '/public'
+  const defaultAppDir = (typeof process !== 'undefined' && process.env.APP_STUDIO_APP_DIR) || DEFAULT_APP_DIR
   const PREFIX = '/__app_preview'
+
+  function resolveAppDir(encoded) {
+    if (encoded) {
+      try { const d = decodeURIComponent(encoded); if (d) return d } catch (e) {}
+    }
+    return defaultAppDir
+  }
 
   const disposers = []
 
@@ -161,10 +167,22 @@ export function apply(ctx) {
         const url = req.url || '/'
         const q = url.indexOf('?')
         const pathname = q >= 0 ? url.slice(0, q) : url
-        const rel = pathname.slice(PREFIX.length)
-        const file = (rel === '' || rel === '/') ? 'index.html' : rel.slice(1)
+        const rel = pathname.slice(PREFIX.length).replace(/^\//, '')
+        const segs = rel.split('/').filter(Boolean)
+        let appDir = defaultAppDir
+        let file = 'index.html'
+        if (segs.length >= 1) {
+          const first = resolveAppDir(segs[0])
+          if (first !== defaultAppDir || segs[0].startsWith('%') || segs[0].startsWith('/')) {
+            // first segment is an encoded absolute workspace path
+            appDir = first
+            file = segs.slice(1).join('/') || 'index.html'
+          } else {
+            file = segs.join('/') || 'index.html'
+          }
+        }
         if (!/^[A-Za-z0-9._-]+$/.test(file)) { res.writeHead(404); res.end('not found'); return }
-        const target = await fs.resolve(publicDir + '/' + file, { cwd: appDir })
+        const target = await fs.resolve(appDir + '/public/' + file, { cwd: appDir })
         const stat = await fs.stat(target)
         if (stat === undefined || stat.type !== 'file') { res.writeHead(404); res.end('not found'); return }
         let body = await fs.readText(target)
@@ -197,6 +215,8 @@ export function apply(ctx) {
           let args = {}
           const m = /(?:^|&)d=([^&]*)/.exec(query)
           if (m) { try { args = JSON.parse(decodeURIComponent(m[1])) } catch (e) {} }
+          const dm = /(?:^|&)dir=([^&]*)/.exec(query)
+          const appDir = resolveAppDir(dm ? dm[1] : undefined)
           const changes = Array.isArray(args.changes) ? args.changes : []
           const instruction = typeof args.instruction === 'string' ? args.instruction : ''
 
