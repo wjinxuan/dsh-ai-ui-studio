@@ -168,7 +168,9 @@ export function apply(ctx) {
         .replace('</body>', '<script>' + OVERLAY_JS + '</script></body>')
     }
     if (ct.indexOf('javascript') >= 0) {
-      return body.replace(/(\bfrom\s*|\bimport\s*\(\s*|\bimport\s*)(["'])\/(?!\/)([^"']*)\2/g, (m, kw, q, p) => kw + q + prefix + '/' + p + q)
+      return body
+        .replace(/(\bfrom\s*|\bimport\s*\(\s*|\bimport\s*)(["'])\/(?!\/)([^"']*)\2/g, (m, kw, q, p) => kw + q + prefix + '/' + p + q)
+        .replace(/(\bfetch\s*\(\s*|\baxios\s*\.\s*(?:get|post|put|delete)\s*\(\s*)(["'`])\/(?!\/)([^"']*)\2/g, (m, kw, q, p) => kw + q + prefix + '/' + p + q)
     }
     if (ct.indexOf('text/css') >= 0) {
       return body.replace(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)"']*))\s*\)/g, (m, dq, sq, bare) => {
