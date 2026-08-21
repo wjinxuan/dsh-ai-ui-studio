@@ -13,10 +13,10 @@ function icon() { return react.createElement("span", { style: { display: "inline
 const CSS = `
   .astudio-entry{background:transparent;border:none;cursor:pointer;font-size:13px;padding:6px 8px;color:#94a3b8;display:inline-flex;align-items:center;gap:4px;}
   .astudio-entry:hover{color:#e2e8f0;}
-  .astudio-fab{position:fixed;right:20px;bottom:20px;z-index:9999;width:44px;height:44px;border-radius:12px;background:rgba(30,41,59,.9);color:#e2e8f0;border:1px solid #475569;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.4);pointer-events:auto;display:flex;align-items:center;justify-content:center;}
+  .astudio-fab{position:fixed;right:20px;bottom:76px;z-index:9999;width:44px;height:44px;border-radius:12px;background:rgba(30,41,59,.9);color:#e2e8f0;border:1px solid #475569;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.4);pointer-events:auto;display:flex;align-items:center;justify-content:center;}
   .astudio-fab:hover{background:#334155;}
-  .astudio-panel{position:fixed;right:0;top:0;bottom:0;width:520px;z-index:9999;
-    background:#0f172a;color:#e2e8f0;border-left:1px solid #334155;
+  .astudio-panel{position:fixed;right:12px;top:56px;bottom:12px;width:520px;z-index:9999;
+    background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:12px;
     box-shadow:-20px 0 60px rgba(0,0,0,.4);display:flex;flex-direction:column;
     font-family:system-ui,-apple-system,sans-serif;pointer-events:auto;overflow:hidden;}
   .astudio-panel.max{width:calc(100vw - 40px);}
