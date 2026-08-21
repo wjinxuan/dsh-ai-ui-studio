@@ -21,6 +21,11 @@ const CSS = `
   .astudio-header button,.astudio-footer button{background:#334155;color:#e2e8f0;border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;}
   .astudio-header button:hover,.astudio-footer button:hover{background:#475569;}
   .astudio-frame{flex:1;border:none;background:#fff;width:100%;min-height:0;}
+  .astudio-dir{display:flex;align-items:center;gap:6px;padding:6px 10px;border-top:1px solid #1e293b;}
+  .astudio-dir label{width:36px;color:#94a3b8;flex-shrink:0;font-size:12px;}
+  .astudio-dir input{flex:1;background:#0b1120;border:1px solid #334155;border-radius:4px;color:#e2e8f0;padding:4px 6px;font-size:12px;}
+  .astudio-dir button{background:#334155;color:#e2e8f0;border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;}
+  .astudio-dir button:hover{background:#475569;}
   .astudio-status{padding:6px 10px;font-size:11px;color:#94a3b8;border-top:1px solid #1e293b;}
   .astudio-props{padding:8px 10px;border-top:1px solid #1e293b;display:flex;flex-direction:column;gap:6px;max-height:160px;overflow:auto;}
   .astudio-prop-row{display:flex;align-items:center;gap:6px;font-size:12px;}
@@ -52,6 +57,10 @@ function apply(ctx) {
       const w = wsList.find((x) => x.sessionIds && x.sessionIds.indexOf(curSession) >= 0);
       if (w) wsPath = w.path;
     }
+    const dirState = react.useState("");
+    const dirInput = dirState[0];
+    const setDirInput = dirState[1];
+    const appDir = dirInput ? dirInput : wsPath;
     const openState = react.useState(false);
     const isOpen = openState[0];
     const setOpen = openState[1];
@@ -84,7 +93,7 @@ function apply(ctx) {
     const setPos = posState[1];
 
     function frame() { return document.getElementById("astudio-frame"); }
-    function previewSrc() { return wsPath ? (PREVIEW + encodeURIComponent(wsPath) + "/") : PREVIEW; }
+    function previewSrc() { return appDir ? (PREVIEW + encodeURIComponent(appDir) + "/") : PREVIEW; }
     function post(type, payload) { const f = frame(); if (f && f.contentWindow) f.contentWindow.postMessage({ __appStudio: true, type: type, payload: payload || {} }, "*"); }
     function refresh() { const f = frame(); if (f) f.src = previewSrc() + "?_=" + Date.now(); }
     function applyStyle(prop, val) { if (selected) post("applyStyle", { selector: selected.selector, property: prop, value: val }); }
@@ -94,7 +103,7 @@ function apply(ctx) {
     function streamApply(args) {
       setBusy(true); setStream(""); setLog("生成中…");
       const q = encodeURIComponent(JSON.stringify(args));
-      const es = new EventSource("/__app_apply_sse?d=" + q + (wsPath ? "&dir=" + encodeURIComponent(wsPath) : ""));
+      const es = new EventSource("/__app_apply_sse?d=" + q + (appDir ? "&dir=" + encodeURIComponent(appDir) : ""));
       es.onmessage = function (e) {
         let p;
         try { p = JSON.parse(e.data); } catch (err) { return; }
@@ -118,7 +127,7 @@ function apply(ctx) {
     }
 
     function startApp() {
-      const u = "/__app_start" + (wsPath ? "?dir=" + encodeURIComponent(wsPath) : "");
+      const u = "/__app_start" + (appDir ? "?dir=" + encodeURIComponent(appDir) : "");
       fetch(u, { method: "POST" })
         .then(function (r) { return r.json(); })
         .then(function (r) { setLog(r && r.started ? "已启动" : ("启动失败" + (r && r.error ? ": " + r.error : ""))); })
@@ -152,7 +161,7 @@ function apply(ctx) {
     react.useEffect(function () {
       if (!isOpen) return;
       refresh();
-    }, [wsPath, isOpen]);
+    }, [appDir, isOpen]);
 
     if (!isOpen) {
       return react.createElement("button", { className: "astudio-fab", title: "App Studio", onClick: function () { setOpen(true); } }, "🛠 App Studio");
@@ -167,6 +176,11 @@ function apply(ctx) {
         react.createElement("button", { onClick: refresh }, "刷新"),
         react.createElement("button", { onClick: startApp }, "启动"),
         react.createElement("button", { onClick: function () { setOpen(false); } }, "×"),
+      ),
+      react.createElement("div", { className: "astudio-dir" },
+        react.createElement("label", null, "目录"),
+        react.createElement("input", { placeholder: appDir || "留空跟随当前工作区", value: dirInput, onChange: function (e) { setDirInput(e.target.value); }, onKeyDown: function (e) { if (e.key === "Enter") refresh(); } }),
+        react.createElement("button", { onClick: function () { setDirInput(""); refresh(); } }, "跟随"),
       ),
       react.createElement("iframe", { id: "astudio-frame", className: "astudio-frame", src: previewSrc() }),
       react.createElement("div", { className: "astudio-status" },
