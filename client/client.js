@@ -19,7 +19,7 @@ const CSS = `
     background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:12px;
     box-shadow:-20px 0 60px rgba(0,0,0,.4);display:flex;flex-direction:column;
     font-family:system-ui,-apple-system,sans-serif;pointer-events:auto;overflow:hidden;}
-  .astudio-panel.max{width:calc(100vw - 40px);}
+  .astudio-panel.max{left:12px;right:12px;width:auto;}
   .astudio-toolbar{display:flex;align-items:center;gap:6px;padding:8px 10px;background:#1e293b;user-select:none;flex:none;}
   .astudio-nav{width:28px;height:28px;border-radius:6px;background:#334155;color:#e2e8f0;border:none;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex:none;}
   .astudio-nav:hover{background:#475569;}
@@ -81,6 +81,9 @@ function apply(ctx) {
     const addrState = react.useState("127.0.0.1:3900");
     const addrInput = addrState[0];
     const setAddrInput = addrState[1];
+    const maxState = react.useState(false);
+    const max = maxState[0];
+    const setMax = maxState[1];
     const editState = react.useState(false);
     const editMode = editState[0];
     const setEditMode = editState[1];
@@ -181,7 +184,7 @@ function apply(ctx) {
       return react.createElement("button", { className: "astudio-fab", title: "App Studio", "aria-label": "App Studio", onClick: function () { setOpen(true); } }, icon());
     }
 
-    return react.createElement("div", { className: "astudio-panel" },
+    return react.createElement("div", { className: "astudio-panel" + (max ? " max" : "") },
       react.createElement("div", { className: "astudio-toolbar" },
         react.createElement("button", { className: "astudio-nav", title: "后退", onClick: goBack }, "←"),
         react.createElement("button", { className: "astudio-nav", title: "前进", onClick: goForward }, "→"),
@@ -189,6 +192,7 @@ function apply(ctx) {
         react.createElement("input", { className: "astudio-addressbar", placeholder: "输入网址，例如 http://127.0.0.1:9528", value: addrInput, onChange: function (e) { setAddrInput(e.target.value); }, onKeyDown: function (e) { if (e.key === "Enter") refresh(); } }),
         react.createElement("button", { className: "astudio-nav", title: editMode ? "退出编辑" : "编辑模式", style: editMode ? { color: "#f59e0b" } : null, onClick: function () { setEditMode(!editMode); } }, editMode ? "✓" : "✎"),
         react.createElement("button", { className: "astudio-nav", title: "启动", onClick: startApp }, "▶"),
+        react.createElement("button", { className: "astudio-nav", title: max ? "还原" : "放大", onClick: function () { setMax(!max); } }, max ? "⤡" : "⤢"),
         react.createElement("button", { className: "astudio-nav", title: "关闭", onClick: function () { toggleOpen(false); } }, "×"),
       ),
       react.createElement("iframe", { id: "astudio-frame", className: "astudio-frame", src: previewSrc() }),
