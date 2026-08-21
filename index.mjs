@@ -180,7 +180,12 @@ export function apply(ctx) {
         upRes.setEncoding('utf8')
         upRes.on('data', (c) => { body += c })
         upRes.on('end', () => {
-          body = body.replace('</body>', '<script>' + OVERLAY_JS + '</script></body>')
+          const prefix = PREFIX + '/' + host + '_' + port
+          // Rewrite absolute paths (src="/…" / href="/…") to route through the proxy,
+          // then inject the overlay before </body>.
+          body = body
+            .replace(/(src|href)=(["'])\/(?!\/)([^"']*)\2/g, (m, attr, q, p) => attr + '=' + q + prefix + '/' + p + q)
+            .replace('</body>', '<script>' + OVERLAY_JS + '</script></body>')
           const h = {}
           for (const k in upRes.headers) if (k !== 'content-length') h[k] = upRes.headers[k]
           res.writeHead(upRes.statusCode || 200, h)
@@ -358,7 +363,8 @@ export function apply(ctx) {
           const query = qIdx >= 0 ? url.slice(qIdx + 1) : ''
           const dm = /(?:^|&)dir=([^&]*)/.exec(query)
           const workdir = resolveAppDir(dm ? dm[1] : undefined)
-          shell.start({ command: 'npm start', workdir: workdir, timeoutMs: 0, stdoutMaxBytes: 1000000, sandboxPolicy: undefined })
+          const spec = shell.resolve({ command: 'npm start', workdir: workdir })
+          shell.start(spec)
           res.writeHead(200, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({ started: true }))
         } catch (e) {
