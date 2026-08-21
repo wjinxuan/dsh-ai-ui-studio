@@ -61,6 +61,9 @@ function apply(ctx) {
     const dirInput = dirState[0];
     const setDirInput = dirState[1];
     const appDir = dirInput ? dirInput : wsPath;
+    const addrState = react.useState("127.0.0.1:3900");
+    const addrInput = addrState[0];
+    const setAddrInput = addrState[1];
     const openState = react.useState(false);
     const isOpen = openState[0];
     const setOpen = openState[1];
@@ -93,7 +96,10 @@ function apply(ctx) {
     const setPos = posState[1];
 
     function frame() { return document.getElementById("astudio-frame"); }
-    function previewSrc() { return appDir ? (PREVIEW + encodeURIComponent(appDir) + "/") : PREVIEW; }
+    function previewSrc() {
+      const a = (addrInput || "127.0.0.1:3900").replace(/^https?:\/\//, "");
+      return PREVIEW + a.replace(":", "_") + "/";
+    }
     function post(type, payload) { const f = frame(); if (f && f.contentWindow) f.contentWindow.postMessage({ __appStudio: true, type: type, payload: payload || {} }, "*"); }
     function refresh() { const f = frame(); if (f) f.src = previewSrc() + "?_=" + Date.now(); }
     function applyStyle(prop, val) { if (selected) post("applyStyle", { selector: selected.selector, property: prop, value: val }); }
@@ -176,6 +182,11 @@ function apply(ctx) {
         react.createElement("button", { onClick: refresh }, "刷新"),
         react.createElement("button", { onClick: startApp }, "启动"),
         react.createElement("button", { onClick: function () { setOpen(false); } }, "×"),
+      ),
+      react.createElement("div", { className: "astudio-dir" },
+        react.createElement("label", null, "地址"),
+        react.createElement("input", { placeholder: "127.0.0.1:3900", value: addrInput, onChange: function (e) { setAddrInput(e.target.value); }, onKeyDown: function (e) { if (e.key === "Enter") refresh(); } }),
+        react.createElement("button", { onClick: refresh }, "刷新"),
       ),
       react.createElement("div", { className: "astudio-dir" },
         react.createElement("label", null, "目录"),

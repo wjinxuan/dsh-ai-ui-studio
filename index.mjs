@@ -1,8 +1,10 @@
 // App Studio — Host half.
-// 1) Serves the target app statically under /__app_preview/ with an injected
-//    editing overlay (same-origin with DSH so the overlay can touch the DOM).
+// 1) Reverse-proxies the RUNNING app under /__app_preview/<host>_<port>/ with an
+//    injected editing overlay (same-origin with DSH so the overlay can touch the DOM).
 // 2) Streams LLM source edits over SSE at /__app_apply_sse.
 // 3) Starts the app at /__app_start (POST).
+import { request as httpRequest } from 'node:http'
+
 export const name = 'dsh-ai-ui-studio'
 export const inject = ['webServer']
 
@@ -158,7 +160,45 @@ export function apply(ctx) {
 
   const disposers = []
 
-  // Static preview with injected overlay.
+  // Reverse proxy to the RUNNING app, injecting the overlay into HTML responses.
+  function proxyTo(host, port, upstreamPath, query, req, res) {
+    const headers = {}
+    for (const k in req.headers) {
+      if (k === 'host' || k === 'connection' || k === 'upgrade' || k === 'keep-alive') continue
+      headers[k] = req.headers[k]
+    }
+    const upstream = httpRequest({
+      hostname: host,
+      port: port,
+      path: upstreamPath + query,
+      method: req.method,
+      headers: headers,
+    }, (upRes) => {
+      const ct = upRes.headers['content-type'] || ''
+      if (ct.indexOf('text/html') >= 0) {
+        let body = ''
+        upRes.setEncoding('utf8')
+        upRes.on('data', (c) => { body += c })
+        upRes.on('end', () => {
+          body = body.replace('</body>', '<script>' + OVERLAY_JS + '</script></body>')
+          const h = {}
+          for (const k in upRes.headers) if (k !== 'content-length') h[k] = upRes.headers[k]
+          res.writeHead(upRes.statusCode || 200, h)
+          res.end(body)
+        })
+      } else {
+        res.writeHead(upRes.statusCode || 200, upRes.headers)
+        upRes.pipe(res)
+      }
+    })
+    upstream.on('error', () => {
+      if (res.headersSent) { res.destroy(); return }
+      res.writeHead(502, { 'Content-Type': 'text/html; charset=utf-8' })
+      res.end('<!doctype html><html><body style="font-family:system-ui,sans-serif;padding:32px;color:#475569"><h2>应用未启动</h2><p>无法连接到 ' + host + ':' + port + '，请先点「启动」或确认应用已在运行。</p></body></html>')
+    })
+    req.pipe(upstream)
+  }
+
   disposers.push(webServer.register({
     kind: 'prefix',
     path: PREFIX,
@@ -167,41 +207,15 @@ export function apply(ctx) {
         const url = req.url || '/'
         const q = url.indexOf('?')
         const pathname = q >= 0 ? url.slice(0, q) : url
+        const query = q >= 0 ? url.slice(q) : ''
         const rel = pathname.slice(PREFIX.length).replace(/^\//, '')
         const segs = rel.split('/').filter(Boolean)
-        let appDir = defaultAppDir
-        let file = 'index.html'
-        if (segs.length >= 1) {
-          const first = resolveAppDir(segs[0])
-          if (first !== defaultAppDir || segs[0].startsWith('%') || segs[0].startsWith('/')) {
-            // first segment is an encoded absolute workspace path
-            appDir = first
-            file = segs.slice(1).join('/') || 'index.html'
-          } else {
-            file = segs.join('/') || 'index.html'
-          }
-        }
-        if (!/^[A-Za-z0-9._-]+$/.test(file)) { res.writeHead(404); res.end('not found'); return }
-        // Resolve the file: try <workspace>/public/<file> first, then <workspace>/<file>.
-        let target = await fs.resolve(appDir + '/public/' + file, { cwd: appDir })
-        let stat = await fs.stat(target)
-        if ((stat === undefined || stat.type !== 'file') && file === 'index.html') {
-          target = await fs.resolve(appDir + '/' + file, { cwd: appDir })
-          stat = await fs.stat(target)
-        }
-        if (stat === undefined || stat.type !== 'file') {
-          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
-          res.end('<!doctype html><html><body style="font-family:system-ui,sans-serif;padding:32px;color:#475569"><h2>没有可预览的页面</h2><p>在工作区 <code>' + appDir + '</code> 里没找到 <code>public/index.html</code> 或 <code>index.html</code>。</p></body></html>')
-          return
-        }
-        let body = await fs.readText(target)
-        const ext = file.slice(file.lastIndexOf('.') + 1)
-        const ct = ext === 'html' ? 'text/html; charset=utf-8' : ext === 'css' ? 'text/css; charset=utf-8' : ext === 'js' ? 'text/javascript; charset=utf-8' : 'application/octet-stream'
-        if (file === 'index.html') {
-          body = body.replace('</body>', '<script>' + OVERLAY_JS + '</script></body>')
-        }
-        res.writeHead(200, { 'Content-Type': ct })
-        res.end(body)
+        const target = segs[0] || '127.0.0.1_3900'
+        const m = /^(.+?)_(\d+)$/.exec(target)
+        const host = m ? m[1] : '127.0.0.1'
+        const port = m ? parseInt(m[2], 10) : 3900
+        const upstreamPath = '/' + segs.slice(1).join('/')
+        proxyTo(host, port, upstreamPath, query, req, res)
       } catch (err) {
         res.writeHead(500)
         res.end(String(err && err.message ? err.message : err))
