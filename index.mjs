@@ -160,8 +160,29 @@ export function apply(ctx) {
 
   const disposers = []
 
-  // Reverse proxy to the RUNNING app, injecting the overlay into HTML responses.
+  // Rewrite absolute asset paths so they route back through the proxy.
+  function rewriteContent(body, ct, prefix) {
+    if (ct.indexOf('text/html') >= 0) {
+      return body
+        .replace(/(src|href)=(["'])\/(?!\/)([^"']*)\2/g, (m, a, q, p) => a + '=' + q + prefix + '/' + p + q)
+        .replace('</body>', '<script>' + OVERLAY_JS + '</script></body>')
+    }
+    if (ct.indexOf('javascript') >= 0) {
+      return body.replace(/(\bfrom\s*|\bimport\s*\(\s*|\bimport\s*)(["'])\/(?!\/)([^"']*)\2/g, (m, kw, q, p) => kw + q + prefix + '/' + p + q)
+    }
+    if (ct.indexOf('text/css') >= 0) {
+      return body.replace(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)"']*))\s*\)/g, (m, dq, sq, bare) => {
+        const p = dq || sq || bare
+        if (p && p.startsWith('/') && !p.startsWith('//')) return 'url("' + prefix + '/' + p + '")'
+        return m
+      })
+    }
+    return body
+  }
+
+  // Reverse proxy to the RUNNING app, rewriting asset paths + injecting the overlay.
   function proxyTo(host, port, upstreamPath, query, req, res) {
+    const prefix = PREFIX + '/' + host + '_' + port
     const headers = {}
     for (const k in req.headers) {
       if (k === 'host' || k === 'connection' || k === 'upgrade' || k === 'keep-alive') continue
@@ -175,17 +196,13 @@ export function apply(ctx) {
       headers: headers,
     }, (upRes) => {
       const ct = upRes.headers['content-type'] || ''
-      if (ct.indexOf('text/html') >= 0) {
+      const shouldRewrite = ct.indexOf('text/html') >= 0 || ct.indexOf('javascript') >= 0 || ct.indexOf('text/css') >= 0
+      if (shouldRewrite) {
         let body = ''
         upRes.setEncoding('utf8')
         upRes.on('data', (c) => { body += c })
         upRes.on('end', () => {
-          const prefix = PREFIX + '/' + host + '_' + port
-          // Rewrite absolute paths (src="/…" / href="/…") to route through the proxy,
-          // then inject the overlay before </body>.
-          body = body
-            .replace(/(src|href)=(["'])\/(?!\/)([^"']*)\2/g, (m, attr, q, p) => attr + '=' + q + prefix + '/' + p + q)
-            .replace('</body>', '<script>' + OVERLAY_JS + '</script></body>')
+          body = rewriteContent(body, ct, prefix)
           const h = {}
           for (const k in upRes.headers) if (k !== 'content-length') h[k] = upRes.headers[k]
           res.writeHead(upRes.statusCode || 200, h)
