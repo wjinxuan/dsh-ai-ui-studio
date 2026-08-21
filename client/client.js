@@ -86,7 +86,7 @@ function apply(ctx) {
     function frame() { return document.getElementById("astudio-frame"); }
     function previewSrc() { return wsPath ? (PREVIEW + encodeURIComponent(wsPath) + "/") : PREVIEW; }
     function post(type, payload) { const f = frame(); if (f && f.contentWindow) f.contentWindow.postMessage({ __appStudio: true, type: type, payload: payload || {} }, "*"); }
-    function refresh() { const f = frame(); if (f) f.src = previewSrc(); }
+    function refresh() { const f = frame(); if (f) f.src = previewSrc() + "?_=" + Date.now(); }
     function applyStyle(prop, val) { if (selected) post("applyStyle", { selector: selected.selector, property: prop, value: val }); }
     function applyText(val) { if (selected) post("applyText", { selector: selected.selector, value: val }); }
     function revert() { post("revert"); setChanges([]); setSelected(null); }
@@ -118,9 +118,10 @@ function apply(ctx) {
     }
 
     function startApp() {
-      fetch("/__app_start", { method: "POST" })
+      const u = "/__app_start" + (wsPath ? "?dir=" + encodeURIComponent(wsPath) : "");
+      fetch(u, { method: "POST" })
         .then(function (r) { return r.json(); })
-        .then(function (r) { setLog(r && r.started ? "已启动，请到 :3900 打开" : "启动失败"); })
+        .then(function (r) { setLog(r && r.started ? "已启动" : ("启动失败" + (r && r.error ? ": " + r.error : ""))); })
         .catch(function (e) { setLog("启动失败: " + String(e && e.message ? e.message : e)); });
     }
 
@@ -147,6 +148,11 @@ function apply(ctx) {
       if (!isOpen) return;
       post("init", { enabled: editMode });
     }, [editMode, isOpen]);
+
+    react.useEffect(function () {
+      if (!isOpen) return;
+      refresh();
+    }, [wsPath, isOpen]);
 
     if (!isOpen) {
       return react.createElement("button", { className: "astudio-fab", title: "App Studio", onClick: function () { setOpen(true); } }, "🛠 App Studio");

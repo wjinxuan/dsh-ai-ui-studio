@@ -182,9 +182,18 @@ export function apply(ctx) {
           }
         }
         if (!/^[A-Za-z0-9._-]+$/.test(file)) { res.writeHead(404); res.end('not found'); return }
-        const target = await fs.resolve(appDir + '/public/' + file, { cwd: appDir })
-        const stat = await fs.stat(target)
-        if (stat === undefined || stat.type !== 'file') { res.writeHead(404); res.end('not found'); return }
+        // Resolve the file: try <workspace>/public/<file> first, then <workspace>/<file>.
+        let target = await fs.resolve(appDir + '/public/' + file, { cwd: appDir })
+        let stat = await fs.stat(target)
+        if ((stat === undefined || stat.type !== 'file') && file === 'index.html') {
+          target = await fs.resolve(appDir + '/' + file, { cwd: appDir })
+          stat = await fs.stat(target)
+        }
+        if (stat === undefined || stat.type !== 'file') {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+          res.end('<!doctype html><html><body style="font-family:system-ui,sans-serif;padding:32px;color:#475569"><h2>没有可预览的页面</h2><p>在工作区 <code>' + appDir + '</code> 里没找到 <code>public/index.html</code> 或 <code>index.html</code>。</p></body></html>')
+          return
+        }
         let body = await fs.readText(target)
         const ext = file.slice(file.lastIndexOf('.') + 1)
         const ct = ext === 'html' ? 'text/html; charset=utf-8' : ext === 'css' ? 'text/css; charset=utf-8' : ext === 'js' ? 'text/javascript; charset=utf-8' : 'application/octet-stream'
@@ -330,7 +339,12 @@ export function apply(ctx) {
       handler: async (req, res) => {
         if (req.method !== 'POST') { res.writeHead(405); res.end('POST only'); return }
         try {
-          shell.start({ command: 'npm start', workdir: appDir, timeoutMs: 0, stdoutMaxBytes: 1000000, sandboxPolicy: undefined })
+          const url = req.url || '/'
+          const qIdx = url.indexOf('?')
+          const query = qIdx >= 0 ? url.slice(qIdx + 1) : ''
+          const dm = /(?:^|&)dir=([^&]*)/.exec(query)
+          const workdir = resolveAppDir(dm ? dm[1] : undefined)
+          shell.start({ command: 'npm start', workdir: workdir, timeoutMs: 0, stdoutMaxBytes: 1000000, sandboxPolicy: undefined })
           res.writeHead(200, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({ started: true }))
         } catch (e) {
