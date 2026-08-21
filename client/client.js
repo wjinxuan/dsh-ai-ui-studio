@@ -97,8 +97,15 @@ function apply(ctx) {
 
     function frame() { return document.getElementById("astudio-frame"); }
     function previewSrc() {
-      const a = (addrInput || "127.0.0.1:3900").replace(/^https?:\/\//, "");
-      return PREVIEW + a.replace(":", "_") + "/";
+      let a = (addrInput || "127.0.0.1:3900").replace(/^https?:\/\//, "");
+      const slash = a.indexOf("/");
+      const hash = a.indexOf("#");
+      let cut = a.length;
+      if (slash >= 0 && slash < cut) cut = slash;
+      if (hash >= 0 && hash < cut) cut = hash;
+      const hostPort = a.slice(0, cut);
+      const tail = a.slice(cut);
+      return PREVIEW + hostPort.replace(":", "_") + "/" + tail.replace(/^\//, "");
     }
     function post(type, payload) { const f = frame(); if (f && f.contentWindow) f.contentWindow.postMessage({ __appStudio: true, type: type, payload: payload || {} }, "*"); }
     function refresh() { const f = frame(); if (f) f.src = previewSrc() + "?_=" + Date.now(); }
