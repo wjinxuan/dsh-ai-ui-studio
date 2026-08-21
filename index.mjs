@@ -3,7 +3,7 @@
 //    editing overlay (same-origin with DSH so the overlay can touch the DOM).
 // 2) Streams LLM source edits over SSE at /__app_apply_sse.
 // 3) Starts the app at /__app_start (POST).
-export const name = 'app-studio'
+export const name = 'dsh-ai-ui-studio'
 export const inject = ['webServer', 'fs']
 
 const DEFAULT_APP_DIR = '/Users/wangzhaojin/work/dsh/ai-ppt-generator'

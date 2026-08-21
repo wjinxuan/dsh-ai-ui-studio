@@ -1,0 +1,4 @@
+# dsh bundle patch: inserts the AI UI Studio host plugin into a profile's layer stack.
+- insert:
+    - id: dsh-ai-ui-studio
+      name: 'dsh-ai-ui-studio'
