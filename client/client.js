@@ -20,22 +20,19 @@ const CSS = `
     box-shadow:-20px 0 60px rgba(0,0,0,.4);display:flex;flex-direction:column;
     font-family:system-ui,-apple-system,sans-serif;pointer-events:auto;overflow:hidden;}
   .astudio-panel.max{width:calc(100vw - 40px);}
-  .astudio-header{display:flex;align-items:center;gap:6px;padding:8px 10px;background:#1e293b;user-select:none;flex:none;}
-  .astudio-header span{font-weight:600;flex:1;font-size:13px;}
-  .astudio-header button,.astudio-footer button{background:#334155;color:#e2e8f0;border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;}
-  .astudio-header button:hover,.astudio-footer button:hover{background:#475569;}
+  .astudio-toolbar{display:flex;align-items:center;gap:6px;padding:8px 10px;background:#1e293b;user-select:none;flex:none;}
+  .astudio-nav{width:28px;height:28px;border-radius:6px;background:#334155;color:#e2e8f0;border:none;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex:none;}
+  .astudio-nav:hover{background:#475569;}
+  .astudio-addressbar{flex:1;background:#0b1120;border:1px solid #334155;border-radius:999px;color:#e2e8f0;padding:6px 14px;font-size:13px;}
   .astudio-frame{flex:1;border:none;background:#fff;width:100%;min-height:0;}
-  .astudio-dir{display:flex;align-items:center;gap:6px;padding:6px 10px;border-top:1px solid #1e293b;flex:none;}
-  .astudio-dir label{width:36px;color:#94a3b8;flex-shrink:0;font-size:12px;}
-  .astudio-dir input{flex:1;background:#0b1120;border:1px solid #334155;border-radius:4px;color:#e2e8f0;padding:4px 6px;font-size:12px;}
-  .astudio-dir button{background:#334155;color:#e2e8f0;border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;}
-  .astudio-dir button:hover{background:#475569;}
   .astudio-status{padding:6px 10px;font-size:11px;color:#94a3b8;border-top:1px solid #1e293b;flex:none;}
   .astudio-props{padding:8px 10px;border-top:1px solid #1e293b;display:flex;flex-direction:column;gap:6px;max-height:160px;overflow:auto;flex:none;}
   .astudio-prop-row{display:flex;align-items:center;gap:6px;font-size:12px;}
   .astudio-prop-row label{width:36px;color:#94a3b8;flex-shrink:0;}
   .astudio-prop-row input{flex:1;background:#0b1120;border:1px solid #334155;border-radius:4px;color:#e2e8f0;padding:4px 6px;font-size:12px;}
   .astudio-footer{padding:8px 10px;border-top:1px solid #1e293b;display:flex;flex-direction:column;gap:6px;flex:none;}
+  .astudio-footer button{background:#334155;color:#e2e8f0;border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;}
+  .astudio-footer button:hover{background:#475569;}
   .astudio-actions{display:flex;align-items:center;gap:8px;}
   .astudio-log{font-size:11px;color:#94a3b8;flex:1;}
   .astudio-stream{background:#0b1120;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:11px;color:#a5f3fc;white-space:pre-wrap;word-break:break-all;max-height:120px;overflow:auto;font-family:ui-monospace,Menlo,monospace;}
@@ -120,6 +117,8 @@ function apply(ctx) {
     }
     function post(type, payload) { const f = frame(); if (f && f.contentWindow) f.contentWindow.postMessage({ __appStudio: true, type: type, payload: payload || {} }, "*"); }
     function refresh() { const f = frame(); if (f) f.src = previewSrc() + "?_=" + Date.now(); }
+    function goBack() { const f = frame(); if (f && f.contentWindow) { try { f.contentWindow.history.back(); } catch (e) {} } }
+    function goForward() { const f = frame(); if (f && f.contentWindow) { try { f.contentWindow.history.forward(); } catch (e) {} } }
     function applyStyle(prop, val) { if (selected) post("applyStyle", { selector: selected.selector, property: prop, value: val }); }
     function applyText(val) { if (selected) post("applyText", { selector: selected.selector, value: val }); }
     function revert() { post("revert"); setChanges([]); setSelected(null); }
@@ -183,22 +182,14 @@ function apply(ctx) {
     }
 
     return react.createElement("div", { className: "astudio-panel" },
-      react.createElement("div", { className: "astudio-header" },
-        react.createElement("span", null, icon(), " App Studio"),
-        react.createElement("button", { onClick: function () { setEditMode(!editMode); } }, editMode ? "编辑中" : "预览"),
-        react.createElement("button", { onClick: revert }, "撤销"),
-        react.createElement("button", { onClick: refresh }, "刷新"),
-        react.createElement("button", { onClick: startApp }, "启动"),
-        react.createElement("button", { onClick: function () { toggleOpen(false); } }, "×"),
-      ),
-      react.createElement("div", { className: "astudio-dir" },
-        react.createElement("label", null, "地址"),
-        react.createElement("input", { placeholder: "127.0.0.1:9528", value: addrInput, onChange: function (e) { setAddrInput(e.target.value); }, onKeyDown: function (e) { if (e.key === "Enter") refresh(); } }),
-        react.createElement("button", { onClick: refresh }, "刷新"),
-      ),
-      react.createElement("div", { className: "astudio-dir" },
-        react.createElement("label", null, "目录"),
-        react.createElement("input", { placeholder: appDir || "留空跟随当前工作区", value: dirInput, onChange: function (e) { setDirInput(e.target.value); } }),
+      react.createElement("div", { className: "astudio-toolbar" },
+        react.createElement("button", { className: "astudio-nav", title: "后退", onClick: goBack }, "←"),
+        react.createElement("button", { className: "astudio-nav", title: "前进", onClick: goForward }, "→"),
+        react.createElement("button", { className: "astudio-nav", title: "刷新", onClick: refresh }, "⟳"),
+        react.createElement("input", { className: "astudio-addressbar", placeholder: "输入网址，例如 http://127.0.0.1:9528", value: addrInput, onChange: function (e) { setAddrInput(e.target.value); }, onKeyDown: function (e) { if (e.key === "Enter") refresh(); } }),
+        react.createElement("button", { className: "astudio-nav", title: editMode ? "退出编辑" : "编辑模式", style: editMode ? { color: "#f59e0b" } : null, onClick: function () { setEditMode(!editMode); } }, editMode ? "✓" : "✎"),
+        react.createElement("button", { className: "astudio-nav", title: "启动", onClick: startApp }, "▶"),
+        react.createElement("button", { className: "astudio-nav", title: "关闭", onClick: function () { toggleOpen(false); } }, "×"),
       ),
       react.createElement("iframe", { id: "astudio-frame", className: "astudio-frame", src: previewSrc() }),
       react.createElement("div", { className: "astudio-status" },
@@ -223,11 +214,16 @@ function apply(ctx) {
       ) : null,
       react.createElement("div", { className: "astudio-footer" },
         react.createElement("div", { className: "astudio-prop-row" },
+          react.createElement("label", null, "目录"),
+          react.createElement("input", { placeholder: appDir || "源码目录（AI 改用）", value: dirInput, onChange: function (e) { setDirInput(e.target.value); } }),
+        ),
+        react.createElement("div", { className: "astudio-prop-row" },
           react.createElement("input", { placeholder: "用自然语言描述改动…", value: aiText, onChange: function (e) { setAiText(e.target.value); } }),
           react.createElement("button", { onClick: function () { if (aiText.trim()) streamApply({ instruction: aiText, changes: changes }); }, disabled: busy }, "AI 改"),
         ),
         react.createElement("div", { className: "astudio-actions" },
           react.createElement("button", { onClick: function () { streamApply({ changes: changes }); }, disabled: busy || changes.length === 0 }, "确认写回 (" + changes.length + ")"),
+          react.createElement("button", { onClick: revert }, "撤销"),
           react.createElement("span", { className: "astudio-log" }, log),
         ),
         stream ? react.createElement("div", { className: "astudio-stream" }, stream) : null,
