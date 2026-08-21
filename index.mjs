@@ -146,9 +146,7 @@ export function apply(ctx) {
   const webServer = ctx.webServer
   const fs = ctx.get('fs')
   if (fs === undefined) return
-  const appDir = (ctx.config && ctx.config.appDir) ||
-    (typeof process !== 'undefined' && process.env.APP_STUDIO_APP_DIR) ||
-    DEFAULT_APP_DIR
+  const appDir = (typeof process !== 'undefined' && process.env.APP_STUDIO_APP_DIR) || DEFAULT_APP_DIR
   const publicDir = appDir + '/public'
   const PREFIX = '/__app_preview'
 
