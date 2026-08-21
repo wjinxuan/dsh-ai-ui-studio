@@ -9,29 +9,29 @@ const inject = ["slots"];
 const PREVIEW = "/__app_preview/";
 
 const CSS = `
-  .astudio-fab{position:fixed;right:20px;bottom:20px;z-index:9999;background:#6366f1;color:#fff;border:none;border-radius:999px;padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.4);pointer-events:auto;}
-  .astudio-fab:hover{background:#4f46e5;}
-  .astudio-panel{position:fixed;left:16px;top:64px;width:760px;height:700px;z-index:9999;
-    background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:12px;
-    box-shadow:0 20px 60px rgba(0,0,0,.5);display:flex;flex-direction:column;
+  .astudio-entry{background:transparent;border:none;cursor:pointer;font-size:13px;padding:6px 8px;color:#94a3b8;}
+  .astudio-entry:hover{color:#e2e8f0;}
+  .astudio-panel{position:fixed;right:0;top:0;bottom:0;width:520px;z-index:9999;
+    background:#0f172a;color:#e2e8f0;border-left:1px solid #334155;
+    box-shadow:-20px 0 60px rgba(0,0,0,.4);display:flex;flex-direction:column;
     font-family:system-ui,-apple-system,sans-serif;pointer-events:auto;overflow:hidden;}
-  .astudio-panel.max{left:20px;top:20px;width:calc(100vw - 40px);height:calc(100vh - 40px);}
-  .astudio-header{display:flex;align-items:center;gap:6px;padding:8px 10px;background:#1e293b;cursor:move;user-select:none;}
+  .astudio-panel.max{width:calc(100vw - 40px);}
+  .astudio-header{display:flex;align-items:center;gap:6px;padding:8px 10px;background:#1e293b;user-select:none;flex:none;}
   .astudio-header span{font-weight:600;flex:1;font-size:13px;}
   .astudio-header button,.astudio-footer button{background:#334155;color:#e2e8f0;border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;}
   .astudio-header button:hover,.astudio-footer button:hover{background:#475569;}
   .astudio-frame{flex:1;border:none;background:#fff;width:100%;min-height:0;}
-  .astudio-dir{display:flex;align-items:center;gap:6px;padding:6px 10px;border-top:1px solid #1e293b;}
+  .astudio-dir{display:flex;align-items:center;gap:6px;padding:6px 10px;border-top:1px solid #1e293b;flex:none;}
   .astudio-dir label{width:36px;color:#94a3b8;flex-shrink:0;font-size:12px;}
   .astudio-dir input{flex:1;background:#0b1120;border:1px solid #334155;border-radius:4px;color:#e2e8f0;padding:4px 6px;font-size:12px;}
   .astudio-dir button{background:#334155;color:#e2e8f0;border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;}
   .astudio-dir button:hover{background:#475569;}
-  .astudio-status{padding:6px 10px;font-size:11px;color:#94a3b8;border-top:1px solid #1e293b;}
-  .astudio-props{padding:8px 10px;border-top:1px solid #1e293b;display:flex;flex-direction:column;gap:6px;max-height:160px;overflow:auto;}
+  .astudio-status{padding:6px 10px;font-size:11px;color:#94a3b8;border-top:1px solid #1e293b;flex:none;}
+  .astudio-props{padding:8px 10px;border-top:1px solid #1e293b;display:flex;flex-direction:column;gap:6px;max-height:160px;overflow:auto;flex:none;}
   .astudio-prop-row{display:flex;align-items:center;gap:6px;font-size:12px;}
   .astudio-prop-row label{width:36px;color:#94a3b8;flex-shrink:0;}
   .astudio-prop-row input{flex:1;background:#0b1120;border:1px solid #334155;border-radius:4px;color:#e2e8f0;padding:4px 6px;font-size:12px;}
-  .astudio-footer{padding:8px 10px;border-top:1px solid #1e293b;display:flex;flex-direction:column;gap:6px;}
+  .astudio-footer{padding:8px 10px;border-top:1px solid #1e293b;display:flex;flex-direction:column;gap:6px;flex:none;}
   .astudio-actions{display:flex;align-items:center;gap:8px;}
   .astudio-log{font-size:11px;color:#94a3b8;flex:1;}
   .astudio-stream{background:#0b1120;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:11px;color:#a5f3fc;white-space:pre-wrap;word-break:break-all;max-height:120px;overflow:auto;font-family:ui-monospace,Menlo,monospace;}
@@ -49,7 +49,23 @@ function apply(ctx) {
     document.head.appendChild(styleTag);
   }
 
+  // Shared open state between the sidebar button and the docked panel.
+  let open = false;
+  const subs = new Set();
+  function setOpen(v) { open = v; subs.forEach((f) => f()); }
+  function subscribe(f) { subs.add(f); return function () { subs.delete(f); }; }
+  function useOpen() {
+    const p = react.useState(open);
+    const v = p[0]; const setV = p[1];
+    react.useEffect(function () { return subscribe(function () { setV(open); }); }, []);
+    return [v, setOpen];
+  }
+
   function StudioPanel(props) {
+    const openPair = useOpen();
+    const isOpen = openPair[0];
+    const toggleOpen = openPair[1];
+
     const wsList = props && props.useWorkspaces ? props.useWorkspaces((s) => s.items) : null;
     const curSession = props && props.useSessions ? props.useSessions((s) => s.current) : null;
     let wsPath = "";
@@ -64,12 +80,6 @@ function apply(ctx) {
     const addrState = react.useState("127.0.0.1:3900");
     const addrInput = addrState[0];
     const setAddrInput = addrState[1];
-    const openState = react.useState(false);
-    const isOpen = openState[0];
-    const setOpen = openState[1];
-    const maxState = react.useState(false);
-    const max = maxState[0];
-    const setMax = maxState[1];
     const editState = react.useState(false);
     const editMode = editState[0];
     const setEditMode = editState[1];
@@ -91,9 +101,6 @@ function apply(ctx) {
     const aiState = react.useState("");
     const aiText = aiState[0];
     const setAiText = aiState[1];
-    const posState = react.useState({ x: 16, y: 64 });
-    const pos = posState[0];
-    const setPos = posState[1];
 
     function frame() { return document.getElementById("astudio-frame"); }
     function previewSrc() {
@@ -128,15 +135,6 @@ function apply(ctx) {
         }
       };
       es.onerror = function () { setLog("失败: 流连接中断"); setBusy(false); es.close(); };
-    }
-
-    function startPanelDrag(e) {
-      if (max) return;
-      e.preventDefault();
-      const sx = e.clientX, sy = e.clientY, ox = pos.x, oy = pos.y;
-      function move(ev) { setPos({ x: ox + (ev.clientX - sx), y: oy + (ev.clientY - sy) }); }
-      function up() { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); }
-      window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
     }
 
     function startApp() {
@@ -174,31 +172,27 @@ function apply(ctx) {
     react.useEffect(function () {
       if (!isOpen) return;
       refresh();
-    }, [appDir, isOpen]);
+    }, [addrInput, isOpen]);
 
-    if (!isOpen) {
-      return react.createElement("button", { className: "astudio-fab", title: "App Studio", onClick: function () { setOpen(true); } }, "🛠 App Studio");
-    }
+    if (!isOpen) return null;
 
-    return react.createElement("div", { className: "astudio-panel" + (max ? " max" : ""), style: max ? null : { left: pos.x + "px", top: pos.y + "px" } },
-      react.createElement("div", { className: "astudio-header", onMouseDown: startPanelDrag },
+    return react.createElement("div", { className: "astudio-panel" },
+      react.createElement("div", { className: "astudio-header" },
         react.createElement("span", null, "🛠 App Studio"),
-        react.createElement("button", { onClick: function () { setMax(!max); } }, max ? "还原" : "全屏"),
         react.createElement("button", { onClick: function () { setEditMode(!editMode); } }, editMode ? "编辑中" : "预览"),
         react.createElement("button", { onClick: revert }, "撤销"),
         react.createElement("button", { onClick: refresh }, "刷新"),
         react.createElement("button", { onClick: startApp }, "启动"),
-        react.createElement("button", { onClick: function () { setOpen(false); } }, "×"),
+        react.createElement("button", { onClick: function () { toggleOpen(false); } }, "×"),
       ),
       react.createElement("div", { className: "astudio-dir" },
         react.createElement("label", null, "地址"),
-        react.createElement("input", { placeholder: "127.0.0.1:3900", value: addrInput, onChange: function (e) { setAddrInput(e.target.value); }, onKeyDown: function (e) { if (e.key === "Enter") refresh(); } }),
+        react.createElement("input", { placeholder: "127.0.0.1:9528", value: addrInput, onChange: function (e) { setAddrInput(e.target.value); }, onKeyDown: function (e) { if (e.key === "Enter") refresh(); } }),
         react.createElement("button", { onClick: refresh }, "刷新"),
       ),
       react.createElement("div", { className: "astudio-dir" },
         react.createElement("label", null, "目录"),
-        react.createElement("input", { placeholder: appDir || "留空跟随当前工作区", value: dirInput, onChange: function (e) { setDirInput(e.target.value); }, onKeyDown: function (e) { if (e.key === "Enter") refresh(); } }),
-        react.createElement("button", { onClick: function () { setDirInput(""); refresh(); } }, "跟随"),
+        react.createElement("input", { placeholder: appDir || "留空跟随当前工作区", value: dirInput, onChange: function (e) { setDirInput(e.target.value); } }),
       ),
       react.createElement("iframe", { id: "astudio-frame", className: "astudio-frame", src: previewSrc() }),
       react.createElement("div", { className: "astudio-status" },
@@ -220,14 +214,6 @@ function apply(ctx) {
           react.createElement("label", null, "字号"),
           react.createElement("input", { type: "number", placeholder: "px", onBlur: function (e) { if (e.target.value) applyStyle("fontSize", e.target.value + "px"); } }),
         ),
-        react.createElement("div", { className: "astudio-prop-row" },
-          react.createElement("label", null, "宽"),
-          react.createElement("input", { type: "number", placeholder: "px", onBlur: function (e) { if (e.target.value) applyStyle("width", e.target.value + "px"); } }),
-        ),
-        react.createElement("div", { className: "astudio-prop-row" },
-          react.createElement("label", null, "高"),
-          react.createElement("input", { type: "number", placeholder: "px", onBlur: function (e) { if (e.target.value) applyStyle("height", e.target.value + "px"); } }),
-        ),
       ) : null,
       react.createElement("div", { className: "astudio-footer" },
         react.createElement("div", { className: "astudio-prop-row" },
@@ -243,6 +229,11 @@ function apply(ctx) {
     );
   }
 
+  const disposeEntry = slots.inject("sidebar.footer.action", function () { return slots.register(
+    { name: "sidebar.footer.action", id: "app-studio", order: 20, label: "App Studio" },
+    function () { return react.createElement("button", { className: "astudio-entry", title: "App Studio", onClick: function () { setOpen(!open); } }, "🛠 App Studio"); },
+  ); });
+
   const disposePanel = slots.inject("shell.overlay", function () { return slots.register(
     { name: "shell.overlay", id: "app-studio", order: 100 },
     function (props) { return react.createElement(StudioPanel, props); },
@@ -250,6 +241,7 @@ function apply(ctx) {
 
   ctx.effect(() => () => {
     if (styleTag) styleTag.remove();
+    disposeEntry();
     disposePanel();
   });
 }
