@@ -7,10 +7,14 @@ const react = require("react");
 const name = "dsh-ai-ui-studio";
 const inject = ["slots"];
 const PREVIEW = "/__app_preview/";
+const ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>';
+function icon() { return react.createElement("span", { style: { display: "inline-flex", alignItems: "center" }, dangerouslySetInnerHTML: { __html: ICON } }); }
 
 const CSS = `
-  .astudio-entry{background:transparent;border:none;cursor:pointer;font-size:13px;padding:6px 8px;color:#94a3b8;}
+  .astudio-entry{background:transparent;border:none;cursor:pointer;font-size:13px;padding:6px 8px;color:#94a3b8;display:inline-flex;align-items:center;gap:4px;}
   .astudio-entry:hover{color:#e2e8f0;}
+  .astudio-fab{position:fixed;right:20px;bottom:20px;z-index:9999;background:#6366f1;color:#fff;border:none;border-radius:999px;padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.4);pointer-events:auto;display:inline-flex;align-items:center;gap:6px;}
+  .astudio-fab:hover{background:#4f46e5;}
   .astudio-panel{position:fixed;right:0;top:0;bottom:0;width:520px;z-index:9999;
     background:#0f172a;color:#e2e8f0;border-left:1px solid #334155;
     box-shadow:-20px 0 60px rgba(0,0,0,.4);display:flex;flex-direction:column;
@@ -174,11 +178,13 @@ function apply(ctx) {
       refresh();
     }, [addrInput, isOpen]);
 
-    if (!isOpen) return null;
+    if (!isOpen) {
+      return react.createElement("button", { className: "astudio-fab", title: "App Studio", onClick: function () { setOpen(true); } }, icon(), " App Studio");
+    }
 
     return react.createElement("div", { className: "astudio-panel" },
       react.createElement("div", { className: "astudio-header" },
-        react.createElement("span", null, "🛠 App Studio"),
+        react.createElement("span", null, icon(), " App Studio"),
         react.createElement("button", { onClick: function () { setEditMode(!editMode); } }, editMode ? "编辑中" : "预览"),
         react.createElement("button", { onClick: revert }, "撤销"),
         react.createElement("button", { onClick: refresh }, "刷新"),
@@ -231,7 +237,7 @@ function apply(ctx) {
 
   const disposeEntry = slots.inject("sidebar.footer.action", function () { return slots.register(
     { name: "sidebar.footer.action", id: "app-studio", order: 20, label: "App Studio" },
-    function () { return react.createElement("button", { className: "astudio-entry", title: "App Studio", onClick: function () { setOpen(!open); } }, "🛠 App Studio"); },
+    function () { return react.createElement("button", { className: "astudio-entry", title: "App Studio", onClick: function () { setOpen(!open); } }, icon(), " App Studio"); },
   ); });
 
   const disposePanel = slots.inject("shell.overlay", function () { return slots.register(
