@@ -4,7 +4,7 @@
 // 2) Streams LLM source edits over SSE at /__app_apply_sse.
 // 3) Starts the app at /__app_start (POST).
 export const name = 'dsh-ai-ui-studio'
-export const inject = ['webServer', 'fs']
+export const inject = ['webServer']
 
 const DEFAULT_APP_DIR = '/Users/wangzhaojin/work/dsh/ai-ppt-generator'
 
@@ -144,7 +144,8 @@ const OVERLAY_JS = `(function () {
 
 export function apply(ctx) {
   const webServer = ctx.webServer
-  const fs = ctx.fs
+  const fs = ctx.get('fs')
+  if (fs === undefined) return
   const appDir = (ctx.config && ctx.config.appDir) ||
     (typeof process !== 'undefined' && process.env.APP_STUDIO_APP_DIR) ||
     DEFAULT_APP_DIR
